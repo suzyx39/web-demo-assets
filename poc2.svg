@@ -61,7 +61,7 @@
         ['common.device_info', {}],
         ['common.app_info', {}],
         ['common.network_state', {}],
-        ['common.system_setting', {package_name: 'com.heytap.games.forum'}],
+        ['common.system_setting', {action: 'android.settings.APPLICATION_DETAILS_SETTINGS', package_name: 'com.android.settings'}],
         ['vip.isLogin', {}],
         ['vip.getToken', {}],
         ['vip.launchActivity', {}]
