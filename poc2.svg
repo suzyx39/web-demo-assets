@@ -48,15 +48,14 @@
     }, 800);
   } else {
     setTimeout(function(){
-      var api = window.HeytapJsApi;
-      log('typeof HeytapJsApi', typeof api);
+      // native→JS 回调对象由页面自己定义（x.java:357 调 window.HeytapJsApi.callback）
+      window.HeytapJsApi = {
+        callback: function(id, obj){ log('cb:' + id, JSON.stringify(obj)); },
+        broadcastReceiver: function(name, obj){ log('bc:' + name, JSON.stringify(obj)); }
+      };
+      var api = window.HeytapNativeApi;   // addJavascriptInterface 注册名（w5/a.java:266）
+      log('typeof HeytapNativeApi', typeof api);
       try { log('props', Object.getOwnPropertyNames(api).join(',')); } catch(e){ log('props_ERR', e); }
-      // 接管回调，收集 native 返回
-      try {
-        window.__res = {};
-        var orig = api && api.callback;
-        if (api) api.callback = function(id, obj){ window.__res[id] = obj; log('cb:'+id, JSON.stringify(obj)); };
-      } catch(e){ log('cb_hook_ERR', e); }
       var calls = [
         ['common.sdk_version', {}],
         ['common.device_info', {}],
@@ -68,7 +67,7 @@
         ['vip.launchActivity', {}]
       ];
       calls.forEach(function(c){
-        var id = 'c' + c[0];
+        var id = 'c_' + c[0].replace(/\./g, '_');
         try {
           var r = api && api.invoke ? String(api.invoke(c[0], JSON.stringify(c[1]), id)) : 'NO_invoke';
           log(c[0], r);
