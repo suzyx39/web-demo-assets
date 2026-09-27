@@ -42,7 +42,7 @@
       var self = location.href.split('#')[0].split('?')[0];
       var it = 'intent://launch#Intent;component=com.heytap.games.forum/'
         + 'com.platform.usercenter.ac.webview.ui.AccountWebExtActivity;'
-        + 'S.key_web_url=' + self + '?stage=B;end';
+        + 'S.key_web_url=' + self + '?stage=B&v=' + Date.now() + ';end';
       log('firing intent ->', 'AccountWebExtActivity (exported=false)');
       try { location.href = it; } catch(e){ log('intent_ERR', e); }
     }, 800);
